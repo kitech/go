@@ -554,18 +554,21 @@ func (b *Builder) build(a *Action) (err error) {
 			}
 			sfiles, gccfiles = filter(sfiles, sfiles[:0], gccfiles)
 		} else {
+			var tmps []string
 			for _, sfile := range sfiles {
 				data, err := ioutil.ReadFile(filepath.Join(a.Package.Dir, sfile))
 				if err == nil {
 					if bytes.HasPrefix(data, []byte("TEXT")) || bytes.Contains(data, []byte("\nTEXT")) ||
+						bytes.Contains(data, []byte("TEXT ·")) ||
 						bytes.HasPrefix(data, []byte("DATA")) || bytes.Contains(data, []byte("\nDATA")) ||
 						bytes.HasPrefix(data, []byte("GLOBL")) || bytes.Contains(data, []byte("\nGLOBL")) {
-						return fmt.Errorf("package using cgo has Go assembly file %s", sfile)
+						tmps = append(tmps, sfile)
+					} else {
+						gccfiles = append(gccfiles, sfile)
 					}
 				}
 			}
-			gccfiles = append(gccfiles, sfiles...)
-			sfiles = nil
+			sfiles = tmps
 		}
 
 		outGo, outObj, err := b.cgo(a, base.Tool("cgo"), objdir, pcCFLAGS, pcLDFLAGS, mkAbsFiles(a.Package.Dir, cgofiles), gccfiles, cxxfiles, a.Package.MFiles, a.Package.FFiles)
